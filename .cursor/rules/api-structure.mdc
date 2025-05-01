@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# API Structure
+
+The EventWithMe API follows RESTful principles with the following components:
+
+## Controller Structure
+
+- **[src/Controller/Api/AbstractApiController.php](mdc:src/Controller/Api/AbstractApiController.php)**: Base controller with common API functionality
+- **[src/Controller/Api/ApiController.php](mdc:src/Controller/Api/ApiController.php)**: Primary API controller interface
+
+## API Components
+
+- **[src/Api/Response](mdc:src/Api/Response)**: API response formatting classes
+- **[src/Api/Exception](mdc:src/Api/Exception)**: Custom exception classes for API error handling
+
+## Configuration
+
+- **[config/routes.yaml](mdc:config/routes.yaml)**: Main routes configuration file
+- **[config/routes/](mdc:config/routes)**: Additional route configuration files
+- **[config/services.yaml](mdc:config/services.yaml)**: Service definitions and configuration

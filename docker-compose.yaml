@@ -1,0 +1,138 @@
+services:
+    eventwithme-traefik:
+        image: "traefik:latest"
+        container_name: "eventwithme-traefik"
+        command:
+            - "--api.insecure=true"
+            - "--providers.docker=true"
+            - "--providers.docker.exposedByDefault=false"
+            - "--providers.docker.network=proxy"
+            - "--entrypoints.http.address=:80"
+            - "--entrypoints.https.address=:443"
+            - "--entrypoints.http.http.redirections.entryPoint.to=https"
+            - "--entrypoints.http.http.redirections.entryPoint.scheme=https"
+        ports:
+            - "80:80"
+            - "443:443"
+            - "8080:8080"
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+            - "./docker/traefik/config/static.yml:/etc/traefik/traefik.yml:ro"
+            - "./docker/traefik/config/dynamic.yml:/etc/traefik/dynamic.yml:ro"
+            - "./docker/traefik/certs:/etc/certs:ro"
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.traefik.rule=Host(`traefik.app.local`)"
+            - "traefik.http.routers.traefik.entrypoints=https"
+            - "traefik.http.routers.traefik.tls=true"
+            - "traefik.http.routers.traefik.service=api@internal"
+        networks:
+            - proxy
+    eventwithme-memcached:
+        container_name: "eventwithme-memcached"
+        image: "memcached:alpine"
+        networks:
+            - proxy
+    eventwithme-postgres:
+        container_name: "eventwithme-postgres"
+        image: "postgres:17-alpine"
+        volumes:
+          -  db-data:/var/lib/postgresql/data:rw
+        environment:
+            - POSTGRES_USER=root
+            - POSTGRES_PASSWORD=root
+            - POSTGRES_DB=eventwithme
+        ports:
+            - "5432:5432"
+        networks:
+            - proxy
+    eventwithme-nginx:
+        container_name: eventwithme-nginx
+        image: "nginx:alpine"
+        working_dir: /application
+        depends_on:
+            -   eventwithme-php
+        volumes:
+            - .:/application
+            - ./vendor:/application/vendor:delegated
+            - ./var:/application/var:delegated
+            - "./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf"
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.nginx.rule=Host(`eventwithme.app.local`)"
+            - "traefik.http.routers.nginx.entrypoints=https"
+            - "traefik.http.routers.nginx.tls=true"
+        networks:
+            - proxy
+    eventwithme-php:
+        container_name: eventwithme-php
+        build:
+            context: .
+            dockerfile: docker/php-fpm/Dockerfile
+            target: dev
+        working_dir: /application
+        volumes:
+            - .:/application
+            - ./vendor:/application/vendor:delegated
+            - ./var:/application/var:delegated
+            - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/8.4/fpm/conf.d/99-overrides.ini
+            - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/8.4/cli/conf.d/99-overrides.ini
+            - ./docker/php-fpm/xdebug.ini:/etc/php/8.4/fpm/conf.d/20-xdebug.ini
+        networks:
+            - proxy
+    eventwithme-mysql:
+        container_name: eventwithme-mysql
+        image: "mysql:8.0"
+        command: --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: eventwithme
+            MYSQL_PASSWORD: root
+        ports:
+            - "3306:3306"
+        networks:
+            - proxy
+    eventwithme-pgadmin:
+        image: elestio/pgadmin:latest
+        container_name: eventwithme-pgadmin4_container
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@eventwithme.com
+            PGADMIN_DEFAULT_PASSWORD: admin
+        ports:
+            - 8081:80
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.app.local`)"
+            - "traefik.http.routers.pgadmin.entrypoints=https"
+            - "traefik.http.routers.pgadmin.tls=true"
+            - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+        volumes:
+            - pgadmin-data:/var/lib/pgadmin
+        networks:
+            - proxy
+    eventwithme-rabbitmq:
+        image: rabbitmq:4.1-management
+        container_name: eventwithme-rabbitmq
+        environment:
+            - RABBITMQ_DEFAULT_USER=admin
+            - RABBITMQ_DEFAULT_PASS=admin
+        ports:
+            - "5672:5672"   # AMQP protocol port
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.app.local`)"
+            - "traefik.http.routers.rabbitmq.entrypoints=https"
+            - "traefik.http.routers.rabbitmq.tls=true"
+            - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        networks:
+            - proxy
+
+volumes:
+    db-data:
+    pgadmin-data:
+    rabbitmq-data:
+networks:
+    proxy:
+        external: true

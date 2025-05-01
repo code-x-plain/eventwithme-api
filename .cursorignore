@@ -1,0 +1,25 @@
+# Cursor ignore file
+
+# Dependencies
+/vendor/
+
+# Cache and logs
+/var/cache/
+/var/log/
+/.phpunit.cache/
+
+# IDE files
+/.idea/
+/.vscode/
+
+# Docker data
+/docker/*/data/
+
+# Symfony environment
+/.env.local
+/.env.local.php
+/.env.*.local
+
+# Database dumps
+/*.sql
+/*.dump
