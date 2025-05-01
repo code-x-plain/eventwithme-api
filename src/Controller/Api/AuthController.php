@@ -178,8 +178,8 @@ class AuthController extends AbstractApiController
     #[OA\Get(
         path: '/api/profile',
         summary: 'Get user profile',
-        tags: ['Authentication'],
         security: [['Bearer' => []]],
+        tags: ['Authentication'],
         responses: [
             new OA\Response(
                 response: 200,
