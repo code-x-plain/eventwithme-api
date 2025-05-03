@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Data Model
+
+The EventWithMe API data model is built around these key components:
+
+## Repositories
+
+- **[src/Repository](mdc:src/Repository)**: Contains repository classes for data access
+
+## Database Configuration
+
+- **[config/packages/doctrine.yaml](mdc:config/packages/doctrine.yaml)**: Doctrine ORM configuration
+- **[migrations](mdc:migrations)**: Database migration files
+
+## Data Serialization
+
+- **[config/serialization](mdc:config/serialization)**: API response serialization configuration
+
+## Entity Relationships
+
+The data model centers around Event entities, which connect to other entities like Users, Locations, and Registrations as the application grows.

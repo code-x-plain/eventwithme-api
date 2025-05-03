@@ -1,0 +1,43 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Docker Configuration
+
+The EventWithMe API project uses Docker for local development with multiple services defined in [docker-compose.yaml](mdc:docker-compose.yaml).
+
+## Main Services
+
+- **eventwithme-php**: PHP-FPM 8.4 environment for running the Symfony application
+- **eventwithme-nginx**: Nginx web server for handling HTTP requests
+- **eventwithme-postgres**: PostgreSQL 17 database 
+- **eventwithme-mysql**: MySQL 8.0 database (alternative database option)
+- **eventwithme-rabbitmq**: RabbitMQ for message queuing
+- **eventwithme-memcached**: Memcached for caching
+- **eventwithme-traefik**: Traefik for routing and SSL handling
+
+## Environment Setup
+
+1. Create network and start containers:
+   ```bash
+   docker network create proxy
+   docker-compose up -d
+   ```
+2. Install dependencies:
+   ```bash
+   docker-compose exec eventwithme-php composer install
+   ```
+
+## Docker Configuration Files
+
+- Main Docker Compose: [docker-compose.yaml](mdc:docker-compose.yaml)
+- PHP Dockerfile: [docker/php-fpm/Dockerfile](mdc:docker/php-fpm/Dockerfile)
+- Nginx Configuration: [docker/nginx/nginx.conf](mdc:docker/nginx/nginx.conf)
+- Traefik Configuration: [docker/traefik/config](mdc:docker/traefik/config)
+
+## Database Access
+
+- PostgreSQL: Available at port 5432 (user: root, password: root)
+- MySQL: Available at port 3306 (user: root, password: root)
+- PgAdmin: Available at https://pgadmin.app.local (email: admin@eventwithme.com, password: admin)

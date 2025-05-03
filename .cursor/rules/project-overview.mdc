@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# EventWithMe API - Project Overview
+
+This is a Symfony 7.2 based API for the EventWithMe platform. The project follows standard Symfony architecture patterns and includes Docker configuration for local development.
+
+## Core Components
+
+- **Controllers** - Located in [src/Controller](mdc:src/Controller)
+- **Entities** - Located in [src/Entity](mdc:src/Entity)
+- **Repositories** - Located in [src/Repository](mdc:src/Repository)
+- **Services** - Located in [src/Service](mdc:src/Service)
+- **API Components** - Located in [src/Api](mdc:src/Api)
+- **Configuration** - Located in [config](mdc:config)
+
+## Key Configuration Files
+
+- Main Symfony Config: [config/services.yaml](mdc:config/services.yaml)
+- Routes Configuration: [config/routes.yaml](mdc:config/routes.yaml)
+- Database Configuration: [config/packages](mdc:config/packages)
+- Docker Setup: [docker-compose.yaml](mdc:docker-compose.yaml)
+
+## Development Environment
+
+The project uses Docker for local development. The main services include:
+- PHP-FPM 8.4
+- Nginx
+- PostgreSQL 17
+- MySQL 8.0
+- RabbitMQ
+- Memcached
+- Traefik for local domain routing
+
+## Local Development URLs
+- Main API: https://eventwithme.app.local
+- Traefik Dashboard: https://traefik.app.local
+- PgAdmin: https://pgadmin.app.local
+- RabbitMQ Management: https://rabbitmq.app.local
+
+## Common Commands
+Use the Makefile for common operations:
+- `make start` - Build and start containers
+- `make down` - Stop containers
+- `make refresh` - Reset database
+- `make bash` - Connect to PHP container

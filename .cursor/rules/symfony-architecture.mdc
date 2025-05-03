@@ -1,0 +1,38 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Symfony Architecture
+
+This project follows the standard Symfony 7.2 architecture with the following key components:
+
+## Core Directories
+
+- **[src/Controller](mdc:src/Controller)**: Contains the API endpoints and request handling logic
+- **[src/Entity](mdc:src/Entity)**: Doctrine ORM entity classes representing database tables
+- **[src/Repository](mdc:src/Repository)**: Doctrine repository classes for database operations
+- **[src/Service](mdc:src/Service)**: Business logic implementation
+- **[src/Api](mdc:src/Api)**: API-specific components like responses and exceptions
+- **[config](mdc:config)**: Application configuration including routes, services, and packages
+- **[migrations](mdc:migrations)**: Database migration files
+
+## Configuration
+
+- **[config/services.yaml](mdc:config/services.yaml)**: Service container configuration
+- **[config/routes.yaml](mdc:config/routes.yaml)**: Route definitions
+- **[config/packages](mdc:config/packages)**: Bundle-specific configuration
+
+## Entry Points
+
+- **[public/index.php](mdc:public/index.php)**: Application entry point
+- **[src/Kernel.php](mdc:src/Kernel.php)**: The Symfony kernel
+- **[bin/console](mdc:bin/console)**: Symfony console command runner
+
+## Request Flow
+
+1. Request enters through public/index.php
+2. Kernel boots the application and creates the service container
+3. Router matches the request to a controller
+4. Controller processes the request, using services and repositories
+5. Response is returned to the client

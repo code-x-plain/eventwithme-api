@@ -1,0 +1,21 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: EventWithMe API
+            description: API for EventWithMe application
+            version: 1.0.0
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT
+        security:
+            - Bearer: []
+        tags:
+            - name: 'Authentication'
+              description: 'User authentication endpoints'
+    areas:
+        default:
+            path_patterns:
+                - ^/api(?!/doc$)(?!\.json$) 

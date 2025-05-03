@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Commands
+
+The project includes a comprehensive [Makefile](mdc:Makefile) with useful commands for development and Docker management.
+
+## Docker Management
+
+- `make build` - Builds Docker images
+- `make up` - Starts Docker containers in detached mode
+- `make start` - Builds and starts the containers
+- `make down` - Stops and removes Docker containers
+- `make logs` - Shows container logs
+
+## Shell Access
+
+- `make sh` - Connect to the PHP container with sh
+- `make bash` - Connect to the PHP container with bash
+
+## Database Operations
+
+- `make refresh` - Drops, creates database, runs migrations and loads fixtures
+- `make migration` - Executes pending migrations
+
+## Cache Management
+
+- `make cc` - Clears the Symfony cache and warms it up
+
+## Composer
+
+- `make composer c="command"` - Run Composer commands
+- `make vendor` - Install vendors according to composer.lock
+
+## Testing
+
+- `make test c="options"` - Run PHPUnit tests with optional parameters
+
+## Common Symfony Commands
+
+All Symfony commands should be run inside the PHP container:
+
+```bash
+docker-compose exec eventwithme-php bin/console [command]
+```
+
+Common commands:
+- Create a new entity: `bin/console make:entity`
+- Create a new controller: `bin/console make:controller`
+- Create a migration: `bin/console make:migration`
+- Run migrations: `bin/console doctrine:migrations:migrate`
+- Clear cache: `bin/console cache:clear`
