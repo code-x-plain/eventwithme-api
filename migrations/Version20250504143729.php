@@ -27,12 +27,6 @@ final class Version20250504143729 extends AbstractMigration
             ALTER TABLE "user" ADD reset_token_expires_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL
         SQL);
         $this->addSql(<<<'SQL'
-            ALTER TABLE "user" DROP auth_code
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE "user" DROP email_auth_enabled
-        SQL);
-        $this->addSql(<<<'SQL'
             COMMENT ON COLUMN "user".reset_token_expires_at IS '(DC2Type:datetime_immutable)'
         SQL);
     }
@@ -42,12 +36,6 @@ final class Version20250504143729 extends AbstractMigration
         // this down() migration is auto-generated, please modify it to your needs
         $this->addSql(<<<'SQL'
             CREATE SCHEMA public
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE "user" ADD auth_code VARCHAR(255) DEFAULT NULL
-        SQL);
-        $this->addSql(<<<'SQL'
-            ALTER TABLE "user" ADD email_auth_enabled BOOLEAN DEFAULT false NOT NULL
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE "user" DROP reset_token
