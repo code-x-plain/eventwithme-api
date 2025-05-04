@@ -63,4 +63,32 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         return $this->findOneBy(['email' => $email]);
     }
+
+    /**
+     * @return User|null
+     */
+    public function findOneByResetToken(string $token): ?User
+    {
+        return $this->findOneBy(['resetToken' => $token]);
+    }
+
+    /**
+     * Set password reset token and expiry time
+     */
+    public function setPasswordResetToken(User $user, string $token, int $expiryHours = 24): void
+    {
+        $user->setResetToken($token);
+        $user->setResetTokenExpiresAt(new \DateTimeImmutable("+{$expiryHours} hours"));
+        $this->save($user, true);
+    }
+
+    /**
+     * Clear password reset token
+     */
+    public function clearPasswordResetToken(User $user): void
+    {
+        $user->setResetToken(null);
+        $user->setResetTokenExpiresAt(null);
+        $this->save($user, true);
+    }
 } 
