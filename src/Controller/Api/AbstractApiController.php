@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Api\Exception\ApiException;
 use App\Api\Response\ApiResponse;
 use App\Api\Response\ApiResponseFormatter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -142,5 +143,76 @@ abstract class AbstractApiController extends AbstractController
         }
         
         return [$object, null];
+    }
+
+    /**
+     * Validate a deserialized DTO object
+     * 
+     * @throws ApiException if validation fails
+     */
+    protected function validateRequestDTO(object $dto, array $validationGroups = ['Default']): void
+    {
+        $violations = $this->validator->validate($dto, null, $validationGroups);
+        
+        if (count($violations) > 0) {
+            $errors = [];
+            foreach ($violations as $violation) {
+                $errors[$violation->getPropertyPath()] = $violation->getMessage();
+            }
+            
+            throw new ApiException('Validation failed', $errors, Response::HTTP_BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * Deserialize request content to a DTO and validate it
+     * 
+     * @throws ApiException if deserialization or validation fails
+     */
+    protected function deserializeAndValidate(Request $request, string $dtoClass, array $validationGroups = ['Default']): object
+    {
+        try {
+            $dto = $this->serializer->deserialize(
+                $request->getContent(),
+                $dtoClass,
+                'json'
+            );
+            
+            $this->validateRequestDTO($dto, $validationGroups);
+            
+            return $dto;
+        } catch (\Symfony\Component\Serializer\Exception\NotEncodableValueException $e) {
+            throw new ApiException('Invalid JSON format: ' . $e->getMessage(), [], Response::HTTP_BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * Handle exceptions and return appropriate error response
+     */
+    protected function handleException(\Throwable $e): JsonResponse
+    {
+        if ($e instanceof \JsonException) {
+            return $this->errorResponse('Invalid JSON format', null, Response::HTTP_BAD_REQUEST);
+        }
+        
+        // Handle specific exceptions from namespace App\Api\Exception\Auth
+        if (str_starts_with(get_class($e), 'App\\Api\\Exception\\Auth\\')) {
+            $errors = [];
+            if ($e instanceof ApiException) {
+                $errors = $e->getErrors();
+            }
+            $statusCode = $e->getCode() ?: Response::HTTP_BAD_REQUEST;
+            return $this->errorResponse($e->getMessage(), $errors, $statusCode);
+        }
+        
+        if ($e instanceof ApiException) {
+            return $this->errorResponse($e->getMessage(), $e->getErrors(), $e->getStatusCode());
+        }
+        
+        // Default error handling for any other exceptions
+        $context = $_ENV['APP_ENV'] === 'dev' ? ['error' => $e->getMessage()] : [];
+        $statusCode = $e instanceof \RuntimeException ? Response::HTTP_BAD_REQUEST : Response::HTTP_INTERNAL_SERVER_ERROR;
+        
+        return $this->errorResponse('An error occurred', $context, $statusCode);
     }
 } 

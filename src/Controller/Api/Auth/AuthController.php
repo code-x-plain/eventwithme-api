@@ -1,11 +1,16 @@
 <?php
 
-namespace App\Controller\Api;
+namespace App\Controller\Api\Auth;
 
+use App\Api\Exception\ApiException;
+use App\Api\Request\Auth\RegisterRequest;
 use App\Api\Response\ApiResponseFormatter;
+use App\Api\Response\Auth\UserResponse;
+use App\Controller\Api\AbstractApiController;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,42 +19,35 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-use OpenApi\Attributes as OA;
-use Nelmio\ApiDocBundle\Annotation\Model;
 
-#[Route('/api', name: 'auth_')]
+#[Route('/api/auth', name: 'auth_')]
 #[OA\Tag(name: 'Authentication')]
 class AuthController extends AbstractApiController
 {
-    private UserPasswordHasherInterface $passwordHasher;
-    private UserRepository $userRepository;
-    private EntityManagerInterface $entityManager;
-
     public function __construct(
         SerializerInterface $serializer,
         ValidatorInterface $validator,
         ApiResponseFormatter $responseFormatter,
-        UserPasswordHasherInterface $passwordHasher,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager
+        private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly UserRepository $userRepository,
+        private readonly EntityManagerInterface $entityManager
     ) {
         parent::__construct($serializer, $validator, $responseFormatter);
-        $this->passwordHasher = $passwordHasher;
-        $this->userRepository = $userRepository;
-        $this->entityManager = $entityManager;
     }
 
     #[Route('/register', name: 'register', methods: ['POST'])]
     #[OA\Post(
-        path: '/api/register',
+        path: '/api/auth/register',
         summary: 'Register a new user',
         requestBody: new OA\RequestBody(
             content: new OA\JsonContent(
                 properties: [
                     new OA\Property(property: 'email', type: 'string', example: 'user@example.com'),
+                    new OA\Property(property: 'username', type: 'string', example: 'johndoe'),
                     new OA\Property(property: 'password', type: 'string', example: 'password123'),
                     new OA\Property(property: 'firstName', type: 'string', example: 'John'),
-                    new OA\Property(property: 'lastName', type: 'string', example: 'Doe')
+                    new OA\Property(property: 'lastName', type: 'string', example: 'Doe'),
+                    new OA\Property(property: 'phoneNumber', type: 'string', example: '+901234567890')
                 ]
             )
         ),
@@ -65,8 +63,11 @@ class AuthController extends AbstractApiController
                         new OA\Property(property: 'data', properties: [
                             new OA\Property(property: 'id', type: 'integer', example: 1),
                             new OA\Property(property: 'email', type: 'string', example: 'user@example.com'),
+                            new OA\Property(property: 'username', type: 'string', example: 'johndoe'),
                             new OA\Property(property: 'firstName', type: 'string', example: 'John'),
-                            new OA\Property(property: 'lastName', type: 'string', example: 'Doe')
+                            new OA\Property(property: 'lastName', type: 'string', example: 'Doe'),
+                            new OA\Property(property: 'phoneNumber', type: 'string', example: '+901234567890'),
+                            new OA\Property(property: 'roles', type: 'array', items: new OA\Items(type: 'string'), example: ['ROLE_USER'])
                         ], type: 'object')
                     ]
                 )
@@ -78,68 +79,42 @@ class AuthController extends AbstractApiController
     public function register(Request $request): JsonResponse
     {
         try {
-            $data = json_decode($request->getContent(), true);
+            $registerRequest = $this->deserializeAndValidate($request, RegisterRequest::class);
 
-            if (empty($data['email']) || empty($data['password']) || empty($data['firstName']) || empty($data['lastName'])) {
-                return $this->errorResponse('Missing required fields');
-            }
-
-            // Check if user already exists
-            $existingUser = $this->userRepository->findOneByEmail($data['email']);
+            $existingUser = $this->userRepository->findOneByEmail($registerRequest->getEmail());
             if ($existingUser) {
-                return $this->errorResponse('User already exists with this email', null, Response::HTTP_CONFLICT);
+                throw new ApiException('User already exists with this email', [], Response::HTTP_CONFLICT);
             }
 
             $user = new User();
-            $user->setEmail($data['email']);
-            $user->setFirstName($data['firstName']);
-            $user->setLastName($data['lastName']);
+            $user->setEmail($registerRequest->getEmail());
+            $user->setUsername($registerRequest->getUsername());
+            $user->setFirstName($registerRequest->getFirstName());
+            $user->setLastName($registerRequest->getLastName());
+            $user->setPhoneNumber($registerRequest->getPhoneNumber());
 
-            // Hash the password
             $hashedPassword = $this->passwordHasher->hashPassword(
                 $user,
-                $data['password']
+                $registerRequest->getPassword()
             );
             $user->setPassword($hashedPassword);
 
-            // Validate user data
-            $violations = $this->validator->validate($user);
-            if (count($violations) > 0) {
-                $errors = [];
-                foreach ($violations as $violation) {
-                    $errors[$violation->getPropertyPath()] = $violation->getMessage();
-                }
-
-                return $this->errorResponse('Validation failed', $errors);
-            }
-
-            // Save the user
             $this->entityManager->persist($user);
             $this->entityManager->flush();
 
             return $this->successResponse(
-                [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                    'firstName' => $user->getFirstName(),
-                    'lastName' => $user->getLastName(),
-                ],
+                UserResponse::fromEntity($user),
                 'User registered successfully',
                 Response::HTTP_CREATED
             );
-
-        } catch (\Exception $e) {
-            return $this->errorResponse(
-                'An error occurred during registration',
-                $e->getMessage(),
-                Response::HTTP_INTERNAL_SERVER_ERROR
-            );
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
         }
     }
 
     #[Route('/login', name: 'login', methods: ['POST'])]
     #[OA\Post(
-        path: '/api/login',
+        path: '/api/auth/login',
         summary: 'Login to get JWT token',
         requestBody: new OA\RequestBody(
             content: new OA\JsonContent(
@@ -166,17 +141,12 @@ class AuthController extends AbstractApiController
     )]
     public function login(): JsonResponse
     {
-        // This route is used by the security system to generate a JWT token
-        // The actual authentication is handled by the security.yaml configuration
-        // and LexikJWTAuthenticationBundle
-
-        // This method is never executed because the JWT bundle handles the response
         return $this->successResponse(null, 'Login endpoint');
     }
 
     #[Route('/profile', name: 'profile', methods: ['GET'])]
     #[OA\Get(
-        path: '/api/profile',
+        path: '/api/auth/profile',
         summary: 'Get user profile',
         security: [['Bearer' => []]],
         tags: ['Authentication'],
@@ -190,8 +160,10 @@ class AuthController extends AbstractApiController
                         new OA\Property(property: 'data', properties: [
                             new OA\Property(property: 'id', type: 'integer', example: 1),
                             new OA\Property(property: 'email', type: 'string', example: 'user@example.com'),
+                            new OA\Property(property: 'username', type: 'string', example: 'johndoe'),
                             new OA\Property(property: 'firstName', type: 'string', example: 'John'),
                             new OA\Property(property: 'lastName', type: 'string', example: 'Doe'),
+                            new OA\Property(property: 'phoneNumber', type: 'string', example: '+901234567890'),
                             new OA\Property(property: 'roles', type: 'array', items: new OA\Items(type: 'string'), example: ['ROLE_USER'])
                         ], type: 'object')
                     ]
@@ -200,21 +172,18 @@ class AuthController extends AbstractApiController
             new OA\Response(response: 401, description: 'User not authenticated')
         ]
     )]
-
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function profile(): JsonResponse
     {
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            return $this->errorResponse('User not authenticated', null, Response::HTTP_UNAUTHORIZED);
-        }
+        try {
+            $user = $this->getUser();
+            if (!$user instanceof User) {
+                throw new ApiException('User not authenticated', [], Response::HTTP_UNAUTHORIZED);
+            }
 
-        return $this->successResponse([
-            'id' => $user->getId(),
-            'email' => $user->getEmail(),
-            'firstName' => $user->getFirstName(),
-            'lastName' => $user->getLastName(),
-            'roles' => $user->getRoles(),
-        ]);
+            return $this->successResponse(UserResponse::fromEntity($user));
+        } catch (\Throwable $e) {
+            return $this->handleException($e);
+        }
     }
 }
