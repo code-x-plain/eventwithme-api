@@ -65,7 +65,9 @@ class PasswordResetController extends AbstractApiController
 
             $user = $this->userRepository->findOneByEmail($resetRequest->getEmail());
             if (!$user) {
-                throw PasswordResetException::userNotFound();
+                return $this->successResponse(
+                    PasswordResetResponse::success('Password reset token generated. In a real application, an email would be sent.')
+                );
             }
 
             // Generate a unique reset token
