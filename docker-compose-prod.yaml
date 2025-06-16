@@ -1,0 +1,54 @@
+services:
+    eventwithme-memcached:
+        container_name: eventwithme-memcached
+        image: memcached:alpine
+        networks:
+            - proxy
+    eventwithme-nginx:
+        container_name: eventwithme-nginx
+        image: nginx:alpine
+        working_dir: /application
+        depends_on:
+            -   eventwithme-php
+        volumes:
+            - .:/application
+            - ./vendor:/application/vendor:delegated
+            - ./var:/application/var:delegated
+            - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+        networks:
+            - proxy
+    eventwithme-php:
+        container_name: eventwithme-php
+        build:
+            context: .
+            dockerfile: docker/php-fpm/Dockerfile
+            target: prod
+        working_dir: /application
+        volumes:
+            - .:/application
+            - ./vendor:/application/vendor:delegated
+            - ./var:/application/var:delegated
+            - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/8.3/fpm/conf.d/99-overrides.ini
+            - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/8.3/cli/conf.d/99-overrides.ini
+            - ./docker/php-fpm/opcache.ini:/etc/php/8.3/fpm/conf.d/opcache.ini
+        extra_hosts:
+            - host.docker.internal:172.17.0.1
+        networks:
+            - proxy
+    eventwithme-rabbitmq:
+        image: rabbitmq:3.7-management
+        container_name: eventwithme-rabbitmq
+        environment:
+            - RABBITMQ_DEFAULT_USER=admin
+            - RABBITMQ_DEFAULT_PASS=admin
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        networks:
+            - proxy
+volumes:
+    db-data:
+    pgadmin-data:
+    rabbitmq-data:
+networks:
+    proxy:
+        external: true
