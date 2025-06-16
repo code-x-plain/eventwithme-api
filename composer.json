@@ -27,6 +27,7 @@
         "symfony/dotenv": "7.2.*",
         "symfony/flex": "^2.5",
         "symfony/framework-bundle": "7.2.*",
+        "symfony/maker-bundle": "^1.63",
         "symfony/property-access": "7.2.*",
         "symfony/property-info": "7.2.*",
         "symfony/runtime": "7.2.*",
@@ -89,7 +90,6 @@
         }
     },
     "require-dev": {
-        "symfony/maker-bundle": "^1.63",
         "symfony/stopwatch": "7.2.*",
         "symfony/web-profiler-bundle": "7.2.*"
     }
