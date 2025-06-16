@@ -23,37 +23,37 @@ class ApiController extends AbstractApiController
 
     /**
      * API information endpoint
-     * 
+     *
      * Returns general information about the API, including version and available endpoints.
      */
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request): JsonResponse
     {
         $version = $this->getApiVersion();
-        
+
         $apiInfo = [
             'name' => 'EventWithMe API',
             'version' => $version,
             'version_status' => $request->attributes->get('api_version_status', 'current'),
             'endpoints' => [
                 'auth' => [
-                    'register' => '/api/register',
-                    'login' => '/api/login',
-                    'profile' => '/api/profile',
+                    'register' => '/api/auth/register',
+                    'login' => '/api/auth/login',
+                    'profile' => '/api/auth/profile',
                 ],
             ],
             'documentation' => '/api/doc',
         ];
-        
+
         // Add version-specific information
         if ($version === '1.1') {
             // Add version 1.1 specific endpoints if needed
         }
-        
+
         // Add warning for deprecated versions
         if ($request->attributes->has('api_version_deprecated')) {
             $apiInfo['deprecated'] = true;
-            
+
             if ($request->attributes->has('api_version_sunset')) {
                 $apiInfo['sunset_date'] = $request->attributes->get('api_version_sunset');
                 $apiInfo['warning'] = 'This API version is deprecated and will be removed after ' . $apiInfo['sunset_date'];
@@ -61,20 +61,20 @@ class ApiController extends AbstractApiController
                 $apiInfo['warning'] = 'This API version is deprecated. Please migrate to a newer version.';
             }
         }
-        
+
         $response = $this->successResponse($apiInfo, 'Welcome to the EventWithMe API');
-        
+
         // Add sunset header for deprecated versions
         if ($request->attributes->has('api_version_sunset')) {
             $response->headers->set('Sunset', date(\DateTime::RFC7231, strtotime($request->attributes->get('api_version_sunset'))));
         }
-        
+
         return $response;
     }
 
     /**
      * API health check endpoint
-     * 
+     *
      * Used for monitoring the API health and status.
      */
     #[Route('/health', name: 'health', methods: ['GET'])]
@@ -86,10 +86,10 @@ class ApiController extends AbstractApiController
             'timestamp' => (new \DateTime())->format('c')
         ]);
     }
-    
+
     /**
      * API versioning examples endpoint
-     * 
+     *
      * Shows how to access the API with different versions.
      */
     #[Route('/version-examples', name: 'version_examples', methods: ['GET'])]
@@ -116,7 +116,7 @@ class ApiController extends AbstractApiController
                 '0.9' => ['status' => 'deprecated', 'sunset_date' => '2024-12-31'],
             ]
         ];
-        
+
         return $this->successResponse($examples, 'API versioning examples');
     }
-} 
+}

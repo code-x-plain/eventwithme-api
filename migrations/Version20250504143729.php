@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20250501095444 extends AbstractMigration
+final class Version20250504143729 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -21,16 +21,13 @@ final class Version20250501095444 extends AbstractMigration
     {
         // this up() migration is auto-generated, please modify it to your needs
         $this->addSql(<<<'SQL'
-            CREATE TABLE "user" (id SERIAL NOT NULL, email VARCHAR(180) NOT NULL, roles JSON NOT NULL, password VARCHAR(255) NOT NULL, first_name VARCHAR(255) NOT NULL, last_name VARCHAR(255) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, PRIMARY KEY(id))
+            ALTER TABLE "user" ADD reset_token VARCHAR(100) DEFAULT NULL
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE UNIQUE INDEX UNIQ_8D93D649E7927C74 ON "user" (email)
+            ALTER TABLE "user" ADD reset_token_expires_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL
         SQL);
         $this->addSql(<<<'SQL'
-            COMMENT ON COLUMN "user".created_at IS '(DC2Type:datetime_immutable)'
-        SQL);
-        $this->addSql(<<<'SQL'
-            COMMENT ON COLUMN "user".updated_at IS '(DC2Type:datetime_immutable)'
+            COMMENT ON COLUMN "user".reset_token_expires_at IS '(DC2Type:datetime_immutable)'
         SQL);
     }
 
@@ -41,7 +38,10 @@ final class Version20250501095444 extends AbstractMigration
             CREATE SCHEMA public
         SQL);
         $this->addSql(<<<'SQL'
-            DROP TABLE "user"
+            ALTER TABLE "user" DROP reset_token
+        SQL);
+        $this->addSql(<<<'SQL'
+            ALTER TABLE "user" DROP reset_token_expires_at
         SQL);
     }
 }
