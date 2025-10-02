@@ -87,7 +87,7 @@ JWT is provided by `lexik/jwt-authentication-bundle` and refresh tokens by `gesd
 - Login: `POST /api/auth/login`
   - Body:
     ```json
-    { "username": "user@example.com", "password": "password123" }
+    { "email": "user@example.com", "password": "password123" }
     ```
   - Response (example):
     ```json
