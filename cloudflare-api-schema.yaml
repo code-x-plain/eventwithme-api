@@ -29,6 +29,78 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                password:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phoneNumber:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User registered successfully
+                  data:
+                    type: object
+        '400':
+          description: Validation failed
+        '409':
+          description: User already exists
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: high
+          action: challenge
+          description: Challenge suspicious signup traffic; block known malicious patterns.
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: register-burst-limit
+              description: Reduce automated signup abuse
+              match:
+                methods: [POST]
+                path: '^/api/auth/register$'
+              threshold: 20
+              period_seconds: 300
+              action: challenge
+              penalty_seconds: 300
+              response:
+                code: 429
+                body: '{"error":"Too many registrations from this source"}'
+        ddos:
+          enabled: true
+          under_attack_mode: true
+        cache:
+          enabled: false
   /api/auth/login:
     post:
       summary: Login to obtain a JWT access token
