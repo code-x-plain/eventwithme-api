@@ -1,0 +1,3 @@
+# Ignore Traefik ACME storage (certificates and account data)
+*
+!.gitignore
