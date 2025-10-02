@@ -1,4 +1,29 @@
 services:
+    eventwithme-traefik:
+        image: "traefik:latest"
+        container_name: "eventwithme-traefik"
+        command:
+            - "--providers.docker=true"
+            - "--providers.docker.exposedByDefault=false"
+            - "--providers.docker.network=proxy"
+            - "--entrypoints.http.address=:80"
+            - "--entrypoints.https.address=:443"
+            - "--entrypoints.http.http.redirections.entryPoint.to=https"
+            - "--entrypoints.http.http.redirections.entryPoint.scheme=https"
+            - "--certificatesresolvers.le.acme.email=admin@eventwithme.com"
+            - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+            - "--certificatesresolvers.le.acme.httpChallenge=true"
+            - "--certificatesresolvers.le.acme.httpChallenge.entryPoint=http"
+            - "--api.dashboard=true"
+        ports:
+            - "80:80"
+            - "443:443"
+            - "8080:8080"
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+            - "./docker/traefik/acme:/letsencrypt"
+        networks:
+            - proxy
     eventwithme-memcached:
         container_name: eventwithme-memcached
         image: memcached:alpine
@@ -15,6 +40,13 @@ services:
             - ./vendor:/application/vendor:delegated
             - ./var:/application/var:delegated
             - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.eventwithme.rule=Host(`eventwithme.com`)"
+            - "traefik.http.routers.eventwithme.entrypoints=https"
+            - "traefik.http.routers.eventwithme.tls=true"
+            - "traefik.http.routers.eventwithme.tls.certresolver=le"
+            - "traefik.http.services.eventwithme.loadbalancer.server.port=80"
         networks:
             - proxy
     eventwithme-php:
