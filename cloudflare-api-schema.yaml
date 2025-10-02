@@ -1,0 +1,503 @@
+openapi: 3.0.3
+info:
+  title: EventWithMe API – Cloudflare Security Schema
+  version: 1.0.0
+  description: |
+    OpenAPI 3.0 configuration documenting authentication, authorization, and Cloudflare web
+    application security controls applied to EventWithMe API endpoints. This schema uses
+    vendor extensions (`x-cloudflare`) to describe Cloudflare-managed protections including
+    rate limiting, DDoS mitigation, WAF rules, cache control, SSL/TLS settings, and origin
+    server protection.
+
+servers:
+  - url: https://{host}
+    description: Cloudflare-protected API endpoint
+    variables:
+      host:
+        default: eventwithme.com
+        description: API hostname fronted by Cloudflare
+
+tags:
+  - name: Authentication
+    description: User registration, login, profile, and password reset endpoints
+  - name: Social Authentication
+    description: OAuth provider integration and callback endpoints
+  - name: Security
+    description: Documentation of Cloudflare security controls applied to the API
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/login:
+    post:
+      summary: Login to obtain a JWT access token
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: JWT token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+        '401':
+          description: Invalid credentials
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: high
+          action: challenge
+          description: Apply managed WAF rules; challenge suspicious login traffic.
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: login-burst-limit
+              description: Limit brute-force attempts
+              match:
+                methods: [POST]
+                path: '^/api/auth/login$'
+              threshold: 10
+              period_seconds: 60
+              action: block
+              penalty_seconds: 300
+              response:
+                code: 429
+                body: '{"error":"Too many login attempts"}'
+        ddos:
+          enabled: true
+          under_attack_mode: true
+          description: Enable JS challenge under attack scenarios for login.
+        cache:
+          enabled: false
+          description: Disable caching for auth.
+
+  /api/auth/token/refresh:
+    post:
+      summary: Refresh JWT access token
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: New JWT access token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Invalid or expired refresh token
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: medium
+          action: challenge
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: token-refresh-rps
+              match:
+                methods: [POST]
+                path: '^/api/auth/token/refresh$'
+              threshold: 30
+              period_seconds: 60
+              action: block
+              penalty_seconds: 180
+              response:
+                code: 429
+        cache:
+          enabled: false
+
+  /api/auth/profile:
+    get:
+      summary: Get authenticated user profile
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: medium
+          action: block
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: profile-rps
+              match:
+                methods: [GET]
+                path: '^/api/auth/profile$'
+              threshold: 120
+              period_seconds: 60
+              action: block
+              penalty_seconds: 120
+        cache:
+          enabled: true
+          respect_origin_headers: true
+          cacheable_methods: [GET]
+          default_ttl_seconds: 30
+          stale_while_revalidate_seconds: 5
+          bypass_on_authorization_header: true
+          description: Short-lived cache only if origin sets cache headers and no Authorization.
+
+  /api/auth/password/reset:
+    post:
+      summary: Reset password using token
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid or expired token
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: high
+          action: block
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: password-reset-burst
+              match:
+                methods: [POST]
+                path: '^/api/auth/password/reset$'
+              threshold: 20
+              period_seconds: 300
+              action: challenge
+              penalty_seconds: 300
+        cache:
+          enabled: false
+
+  /api/auth/password/validate-token/{token}:
+    get:
+      summary: Validate a password reset token
+      tags: [Authentication]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token is valid
+        '400':
+          description: Invalid or expired token
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: medium
+          action: block
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: validate-token-rps
+              match:
+                methods: [GET]
+                path: '^/api/auth/password/validate-token/.*$'
+              threshold: 60
+              period_seconds: 60
+              action: block
+              penalty_seconds: 120
+        cache:
+          enabled: false
+
+  /api/auth/social/connect:
+    post:
+      summary: Get OAuth redirect URL for a provider
+      tags: [Social Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider:
+                  type: string
+                  enum: [google, facebook, apple]
+      responses:
+        '200':
+          description: Redirect URL returned
+        '400':
+          description: Invalid or missing provider
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: medium
+          action: challenge
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: social-connect-rps
+              match:
+                methods: [POST]
+                path: '^/api/auth/social/connect$'
+              threshold: 60
+              period_seconds: 60
+              action: block
+              penalty_seconds: 120
+        cache:
+          enabled: false
+
+  /api/auth/social/{provider}/check:
+    get:
+      summary: OAuth callback handler
+      tags: [Social Authentication]
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, facebook, apple]
+      responses:
+        '200':
+          description: Authentication data returned
+        '401':
+          description: Authentication failed
+      x-cloudflare:
+        waf:
+          enabled: true
+          sensitivity: medium
+          action: challenge
+        rate_limiting:
+          enabled: true
+          rules:
+            - name: social-callback-rps
+              match:
+                methods: [GET]
+                path: '^/api/auth/social/(google|facebook|apple)/check$'
+              threshold: 120
+              period_seconds: 60
+              action: block
+              penalty_seconds: 120
+        cache:
+          enabled: false
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token issued via `/api/auth/login` and refreshed via `/api/auth/token/refresh`.
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Optional key for partner integrations; combine with JWT for higher assurance.
+    oauth2:
+      type: oauth2
+      description: Optional OAuth 2.0 flow for third-party clients.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://{host}/oauth/authorize
+          tokenUrl: https://{host}/oauth/token
+          scopes:
+            profile: Read user profile
+            email: Read user email
+
+  responses:
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Too many requests
+
+x-cloudflare:
+  documentation: |
+    The following Cloudflare settings secure and accelerate the API. These are
+    declarative vendor extensions; apply them using Cloudflare Dashboard, API, or IaC
+    (e.g., Terraform). They are organized by feature and intended defaults.
+
+  waf:
+    enabled: true
+    mode: block
+    managed_rulesets:
+      - name: OWASP Core Ruleset
+        id: cf.waf.managed.owasp
+        action: block
+        sensitivity: high
+      - name: Cloudflare Managed API Rules
+        id: cf.waf.managed.api
+        action: block
+        sensitivity: medium
+    custom_rules:
+      - name: block-sql-injection
+        expression: '(cf.waf.category eq "sql_injection")'
+        action: block
+      - name: challenge-high-risk-countries
+        expression: '(ip.geoip.country in {"CN","RU","IR"}) and http.request.uri.path starts_with "/api"'
+        action: challenge
+    description: Enable managed rules and targeted custom rules to mitigate common attacks.
+
+  rate_limiting:
+    enabled: true
+    strategy: token_bucket
+    default_limits:
+      per_ip:
+        rps: 120
+        burst: 240
+      per_user:
+        rps: 60
+        burst: 120
+    override_on_paths:
+      - path: '^/api/auth/login$'
+        rps: 10
+        burst: 10
+        penalty_seconds: 300
+      - path: '^/api/auth/token/refresh$'
+        rps: 30
+        burst: 30
+        penalty_seconds: 180
+    description: Global API rate limits with stricter thresholds on sensitive endpoints.
+
+  ddos:
+    enabled: true
+    sensitivity: high
+    under_attack_mode: true
+    adaptive_protection: true
+    description: Managed DDoS mitigation with adaptive detection; enable Under Attack mode as needed.
+
+  cache:
+    enabled: true
+    tiered_caching: true
+    origin_cache_control_respected: true
+    default_ttl_seconds: 60
+    stale_while_revalidate_seconds: 10
+    rules:
+      - name: no-cache-auth
+        match: '^/api/auth/.*$'
+        action: bypass
+      - name: cache-safe-get
+        match: '^/api/.*$'
+        methods: [GET]
+        action: cache
+        ttl_seconds: 30
+        bypass_on_authorization_header: true
+    description: Optimize cache for GET endpoints while bypassing auth-sensitive routes.
+
+  ssl_tls:
+    enabled: true
+    encryption_mode: full_strict
+    min_tls_version: '1.2'
+    tls_1_3: enabled
+    hsts:
+      enabled: true
+      max_age_seconds: 31536000
+      include_subdomains: true
+      preload: true
+    ciphers:
+      - TLS_AES_128_GCM_SHA256
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+    ocsp_stapling: true
+    description: Enforce modern TLS, HSTS, and strong cipher suites.
+
+  origin_protection:
+    allow_cloudflare_egress_only: true
+    block_direct_origin_access: true
+    origin_shield: true
+    mutual_tls:
+      enabled: true
+      client_cert_id: "${CLOUDFLARE_CLIENT_CERT_ID}"
+    require_origin_header:
+      enabled: true
+      header: X-Origin-Auth
+      value: "${ORIGIN_SHARED_SECRET}"
+    firewall_rules:
+      - name: block-non-cloudflare
+        expression: '(not ip.src in $cloudflare_ips)'
+        action: block
+    description: Prevent bypassing Cloudflare by restricting origin access and enabling mTLS.
+
+  cors:
+    enabled: true
+    allowed_origins: ['https://eventwithme.com']
+    allowed_methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS']
+    allowed_headers: ['Authorization','Content-Type','Accept','X-API-Key']
+    allow_credentials: true
+    max_age_seconds: 86400
+    description: Restrict cross-origin access to approved frontends; credentials supported.
+
+  logging_and_monitoring:
+    logpush_enabled: true
+    security_events_enabled: true
+    sampling_rate_percent: 100
+    description: Enable Logpush and security analytics for observability and incident response.
+
+  bot_management:
+    enabled: true
+    action: challenge
+    description: Challenge suspected automated traffic to reduce abuse.
+
+  notes: |
+    - Apply stricter controls on `/api/auth/*` endpoints.
+    - Prefer short TTL caching for idempotent GET endpoints without `Authorization` header.
+    - Use `full_strict` TLS with mTLS to stop origin bypass and secure service-to-service traffic.
+    - Rate-limit bursty endpoints and return clear 429 responses.
+    - Keep WAF sensitivity high on login and token flows, medium elsewhere.
