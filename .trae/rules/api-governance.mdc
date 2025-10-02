@@ -1,0 +1,3 @@
+# API Governance
+
+- Always update `cloudfalre-api-schema.yaml` after any changes which effect API endpoint or schema.
