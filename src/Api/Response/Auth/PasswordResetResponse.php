@@ -17,7 +17,7 @@ class PasswordResetResponse
     /**
      * Create a success response
      */
-    public static function success(string $message = null): self
+    public static function success(?string $message = null): self
     {
         $response = new self();
         $response->success = true;
@@ -61,4 +61,4 @@ class PasswordResetResponse
         $this->message = $message;
         return $this;
     }
-} 
+}

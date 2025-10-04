@@ -82,7 +82,6 @@ class ApiController extends AbstractApiController
     {
         return $this->successResponse([
             'status' => 'healthy',
-            'environment' => $_ENV['APP_ENV'],
             'timestamp' => (new \DateTime())->format('c')
         ]);
     }
